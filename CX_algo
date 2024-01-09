@@ -1,0 +1,41 @@
+#CX
+
+import os
+import numpy as np
+
+#func for calculating CX values
+def calculate_cx(x, y, z, coordinates, radius=10.0):
+    num_atoms_within_sphere = sum(1 for coord in coordinates if 0 < np.sqrt((x - coord[0])**2 + (y - coord[1])**2 + (z - coord[2])**2) <= radius)
+    mean_atomic_volume = 20.1
+    v_int = num_atoms_within_sphere * mean_atomic_volume
+    v_ext = (4/3) * np.pi * radius**3 - v_int
+    cx_index = v_ext / v_int if v_int != 0 else 0
+    return cx_index
+
+#retreiving info from input file
+def read_pdb(file_path):
+    atoms = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            if line.startswith('ATOM'):
+                atoms.append({'x': float(line[30:38]), 'y': float(line[38:46]), 'z': float(line[46:54])})
+    return atoms
+
+#writing cx values obtained in the new cx file created
+def write_pdb_with_cx(input_file_path, atoms, coordinates):
+    input_file_name = os.path.splitext(os.path.basename(input_file_path))[0]
+    output_file_path = f"{input_file_name}_cx.pdb"
+
+    with open(input_file_path, 'r') as input_file, open(output_file_path, 'w') as output_file:
+        for i, line in enumerate(input_file):
+            if i < min(len(atoms), len(coordinates)):
+                cx_index = calculate_cx(atoms[i]['x'], atoms[i]['y'], atoms[i]['z'], coordinates)
+                updated_line = f"{line[:60]}{cx_index:6.2f}{line[66:]}\n"
+                output_file.write(updated_line)
+
+pdb_file_path = r"D:/KUSH GULATI/7est.pdb"
+
+atoms_info = read_pdb(pdb_file_path)
+coordinates_array = np.array([[atom['x'], atom['y'], atom['z']] for atom in atoms_info])
+
+write_pdb_with_cx(pdb_file_path, atoms_info, coordinates_array)
