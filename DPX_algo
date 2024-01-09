@@ -1,0 +1,73 @@
+#DPX
+
+import os
+import numpy as np
+
+def calculate_dpx(x, y, z, surface_coordinates):
+    distances = [np.sqrt((x - coord[0])**2 + (y - coord[1])**2 + (z - coord[2])**2) for coord in surface_coordinates]
+    dpx_value = min(distances) if distances else 0
+    return dpx_value
+
+def read_pdb(file_path):
+    atoms = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            if line.startswith('ATOM'):
+                atom_info = {'x': float(line[30:38]), 'y': float(line[38:46]), 'z': float(line[46:54])}
+                atoms.append(atom_info)
+    return atoms
+
+def read_asa(asa_file_path):
+    coor_dic={}
+    buried_atoms,surface_atoms=[[],[]]
+    with open(asa_file_path, 'r') as asa_file:
+        for line in asa_file:
+            if line.startswith('ATOM'):
+                key=(line[22:27].strip(),line[12:16].strip())
+                coord=[float(line[30:38].strip()),float(line[38:46].strip()),float(line[46:54].strip())]
+                #accessibility_str = line[54:62].strip()
+                accessibility = float(line[54:62].strip())
+                surface=1 if accessibility>0 else 0
+                coor_dic[key]=coord
+                if surface:
+                    surface_atoms.append(key)
+                else:
+                    buried_atoms.append(key)
+                # print(f"Atom {atom_number}: Accessibility = {accessibility}")
+                # if accessibility == 0.0:  # Considering > 0.000 as surface atom
+                #     buried_atoms.append(key)
+                # else:
+                #     surface_atoms.append(atom_number)
+    return surface_atoms, buried_atoms,coor_dic
+    # return dic
+
+def write_pdb_with_dpx(input_file_path, surface_atoms, surface_coordinates, buried_atoms):
+    input_file_name = os.path.splitext(os.path.basename(input_file_path))[0]
+    output_file_path = f"{input_file_name}_dpx.pdb"
+
+    # print("Surface Atoms:", surface_atoms)
+    # print("Buried Atoms:", buried_atoms)
+
+    with open(input_file_path, 'r') as input_file, open(output_file_path, 'w') as output_file:
+        for line in input_file:
+            if line.startswith('ATOM'):
+                key=(line[22:27].strip(),line[12:16].strip())
+                if key in surface_atoms:
+                    dpx_value = 0.00
+                elif key in buried_atoms:
+                    coor=coor_dict[key]
+                    dpx_value = calculate_dpx(coor[0],coor[1],coor[2], surface_coordinates)
+                else:
+                    dpx_value = 0.00  # to handle other cases
+                updated_line = f"{line[:60]}{dpx_value:6.2f}{line[66:]}"
+                output_file.write(updated_line)
+
+pdb_file_path = "/home/siddhant/Desktop/k/kush/DPX/7est.pdb"
+asa_file_path = "/home/siddhant/Desktop/k/kush/DPX/7est.asa"
+
+surface_atoms, buried_atoms,coor_dict = read_asa(asa_file_path)
+surface_coordinates=[coor_dict[key] for key in surface_atoms]
+# atoms_info = read_pdb(pdb_file_path)
+# surface_coordinates = np.array([[atom['x'], atom['y'], atom['z']] for atom in atoms_info if int(atom.get('atom_number', 0)) in surface_atoms])
+# print(int(atoms_info[10].get('atom_number', 0)))
+write_pdb_with_dpx(pdb_file_path, surface_atoms, surface_coordinates, buried_atoms)
